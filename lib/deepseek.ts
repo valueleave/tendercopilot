@@ -95,194 +95,116 @@ export interface TenderAnalysis {
 
   key_deviations: string[];
 }
-const ANALYSIS_TOOL = {
-  type: "function" as const,
-  function: {
-    name: "output_tender_analysis",
-    description:
-      "输出招标文件的深度结构化分析结果，包含项目基本信息、时间节点、资格要求、评分标准、风险分析、投标策略等完整维度",
-    parameters: {
-      type: "object",
-      properties: {
-        project_name: { type: "string", description: "项目名称" },
-        project_number: { type: "string", description: "项目编号/招标编号" },
-        tender_company: { type: "string", description: "招标人（业主单位）名称" },
-        tender_agent: { type: "string", description: "招标代理机构名称" },
-        timeline: {
-          type: "object",
-          description: "关键时间节点",
-          properties: {
-            bid_deadline: { type: "string", description: "投标截止时间" },
-            bid_opening_time: { type: "string", description: "开标时间" },
-            document_period: { type: "string", description: "招标文件获取时间" },
-            pre_bid_meeting: { type: "string", description: "答疑会/标前会时间" },
-            site_visit: { type: "string", description: "现场踏勘时间" },
-            bid_validity: { type: "string", description: "投标有效期" },
-          },
-          required: ["bid_deadline", "bid_opening_time", "document_period", "pre_bid_meeting", "site_visit", "bid_validity"],
-        },
-        project_overview: {
-          type: "object",
-          description: "项目概况",
-          properties: {
-            location: { type: "string", description: "建设地点" },
-            scale: { type: "string", description: "建设规模" },
-            funding_source: { type: "string", description: "资金来源" },
-            budget: { type: "string", description: "预算金额" },
-            contract_period: { type: "string", description: "工期要求" },
-            quality_standard: { type: "string", description: "质量标准" },
-          },
-          required: ["location", "scale", "funding_source", "budget", "contract_period", "quality_standard"],
-        },
-        financial_requirements: {
-          type: "object",
-          description: "财务要求",
-          properties: {
-            bid_bond_amount: { type: "string", description: "投标保证金金额" },
-            bid_bond_form: { type: "string", description: "保证金形式" },
-            performance_bond: { type: "string", description: "履约保证金" },
-            payment_terms: { type: "string", description: "付款方式" },
-            other: { type: "array", description: "其他财务要求", items: { type: "string" } },
-          },
-          required: ["bid_bond_amount", "bid_bond_form", "performance_bond", "payment_terms", "other"],
-        },
-        qualification_requirements: {
-          type: "object",
-          description: "资格要求（分类）",
-          properties: {
-            general: { type: "array", items: { type: "string" }, description: "通用要求" },
-            qualification_cert: { type: "array", items: { type: "string" }, description: "资质证书要求" },
-            performance_record: { type: "array", items: { type: "string" }, description: "业绩要求" },
-            personnel: { type: "array", items: { type: "string" }, description: "人员要求" },
-            financial_status: { type: "array", items: { type: "string" }, description: "财务要求" },
-            joint_venture: { type: "array", items: { type: "string" }, description: "联合体要求" },
-            other: { type: "array", items: { type: "string" }, description: "其他" },
-          },
-          required: ["general", "qualification_cert", "performance_record", "personnel", "financial_status", "joint_venture", "other"],
-        },
-        scoring_rules: {
-          type: "object",
-          description: "评分标准",
-          properties: {
-            method: { type: "string", description: "评标方法" },
-            total_score: { type: "number", description: "总分" },
-            technical_weight: { type: "number", description: "技术权重" },
-            commercial_weight: { type: "number", description: "商务权重" },
-            price_weight: { type: "number", description: "价格权重" },
-            scoring_items: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string", description: "评分项" },
-                  category: { type: "string", enum: ["technical", "commercial", "price", "other"] },
-                  full_score: { type: "number", description: "满分" },
-                  evaluation_criteria: { type: "string", description: "评审标准" },
-                },
-                required: ["name", "category", "full_score", "evaluation_criteria"],
-              },
-            },
-          },
-          required: ["method", "total_score", "technical_weight", "commercial_weight", "price_weight", "scoring_items"],
-        },
-        technical_highlights: {
-          type: "object",
-          properties: {
-            key_parameters: { type: "array", items: { type: "string" } },
-            standards: { type: "array", items: { type: "string" } },
-            special_requirements: { type: "array", items: { type: "string" } },
-            acceptance_criteria: { type: "array", items: { type: "string" } },
-          },
-          required: ["key_parameters", "standards", "special_requirements", "acceptance_criteria"],
-        },
-        bid_document_requirements: {
-          type: "object",
-          properties: {
-            required_contents: { type: "array", items: { type: "string" } },
-            copies: { type: "string" },
-            seal_requirements: { type: "string" },
-            format_requirements: { type: "array", items: { type: "string" } },
-          },
-          required: ["required_contents", "copies", "seal_requirements", "format_requirements"],
-        },
-        contract_highlights: {
-          type: "object",
-          properties: {
-            contract_type: { type: "string" },
-            warranty_period: { type: "string" },
-            liquidated_damages: { type: "string" },
-            dispute_resolution: { type: "string" },
-            other: { type: "array", items: { type: "string" } },
-          },
-          required: ["contract_type", "warranty_period", "liquidated_damages", "dispute_resolution", "other"],
-        },
-        risk_analysis: {
-          type: "object",
-          properties: {
-            disqualifying_factors: { type: "array", items: { type: "string" }, description: "废标因素" },
-            high_risk: { type: "array", items: { type: "string" } },
-            medium_risk: { type: "array", items: { type: "string" } },
-            low_risk: { type: "array", items: { type: "string" } },
-          },
-          required: ["disqualifying_factors", "high_risk", "medium_risk", "low_risk"],
-        },
-        bidding_strategy: {
-          type: "object",
-          properties: {
-            preparation_focus: { type: "array", items: { type: "string" } },
-            competitive_insights: { type: "string" },
-            pricing_suggestion: { type: "string" },
-            key_success_factors: { type: "array", items: { type: "string" } },
-            timeline_reminders: { type: "array", items: { type: "string" } },
-          },
-          required: ["preparation_focus", "competitive_insights", "pricing_suggestion", "key_success_factors", "timeline_reminders"],
-        },
-        key_deviations: { type: "array", items: { type: "string" }, description: "关键偏离项" },
-      },
-      required: [
-        "project_name", "project_number", "tender_company", "tender_agent",
-        "timeline", "project_overview", "financial_requirements",
-        "qualification_requirements", "scoring_rules", "technical_highlights",
-        "bid_document_requirements", "contract_highlights",
-        "risk_analysis", "bidding_strategy", "key_deviations",
-      ],
-    },
+
+const SYSTEM_PROMPT = `你是TenderCopilot AI，20年招投标实战专家。
+
+## 任务
+分析招标文件（PDF提取文本），输出结构化JSON分析报告。
+
+## 分析步骤
+1. 通读全文，理解结构
+2. 提取基础信息（项目名称、编号、招标人、代理机构）
+3. 梳理时间节点（投标截止、开标、文件获取、答疑会、踏勘、有效期）
+4. 审查资格要求（按通用/资质/业绩/人员/财务/联合体/其他分类）
+5. 解析评标办法（方法名、总分、技术/商务/价格权重、各项评分细则）
+6. 识别技术要点（关键参数、标准规范、特殊要求、验收标准）
+7. 审查合同条款（类型、质保、违约金、争议解决）
+8. 研判风险（废标因素、高/中/低风险）
+9. 形成策略（编制重点、竞争分析、报价建议、成功因素、时间提醒）
+
+## 输出格式
+必须输出纯JSON，不能有任何markdown、代码块标记、或多余文字。
+输出JSON必须严格遵循以下结构（字段值若文件未提及则填空字符串或空数组）：
+
+{
+  "project_name": "",
+  "project_number": "",
+  "tender_company": "",
+  "tender_agent": "",
+  "timeline": {
+    "bid_deadline": "",
+    "bid_opening_time": "",
+    "document_period": "",
+    "pre_bid_meeting": "",
+    "site_visit": "",
+    "bid_validity": ""
   },
-};
-
-const SYSTEM_PROMPT = `你是TenderCopilot AI，一名拥有20年招投标实战经验的资深专家，精通工程建设、政府采购、企业招标等各类招标投标法规和实务。
-
-## 核心任务
-分析用户上传的招标文件（PDF提取的文本内容），输出深度结构化分析结果。
-
-## 分析流程（严格按以下步骤思考，再输出）
-1. 快速通读全文，理解招标文件的结构和核心内容
-2. 提取基础信息：项目名称、编号、招标人、代理机构
-3. 梳理时间线：找出所有关键时间节点
-4. 逐一审查资格要求：按类别分类整理，注意嵌套条件
-5. 解析评标办法：理解评分体系、权重分配和评审标准
-6. 识别技术要求：关键技术参数和特殊要求
-7. 审查合同条款：注意不利条款
-8. 研判风险：从投标人角度分析废标因素和高、中、低风险
-9. 形成策略：给出可操作的投标策略建议
-
-## 输出要求
-- 使用 output_tender_analysis 函数输出
-- 所有字段必须从招标文件原文中提取，不要臆造
-- 对于文件中未提及的字段，填入"未提及"或空数组
-- 资格要求务必分类整理，不要笼统列举
-- 风险分析要具体、有针对性，避免泛泛而谈
-- 投标策略要结合评分办法给出具体的建议
-- 保持专业、客观、精准`;
-
-function isValidAnalysis(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    typeof (value as Record<string, unknown>).project_name === "string"
-  );
+  "project_overview": {
+    "location": "",
+    "scale": "",
+    "funding_source": "",
+    "budget": "",
+    "contract_period": "",
+    "quality_standard": ""
+  },
+  "financial_requirements": {
+    "bid_bond_amount": "",
+    "bid_bond_form": "",
+    "performance_bond": "",
+    "payment_terms": "",
+    "other": []
+  },
+  "qualification_requirements": {
+    "general": [],
+    "qualification_cert": [],
+    "performance_record": [],
+    "personnel": [],
+    "financial_status": [],
+    "joint_venture": [],
+    "other": []
+  },
+  "scoring_rules": {
+    "method": "",
+    "total_score": 100,
+    "technical_weight": 0,
+    "commercial_weight": 0,
+    "price_weight": 0,
+    "scoring_items": [
+      {"name": "", "category": "technical", "full_score": 0, "evaluation_criteria": ""}
+    ]
+  },
+  "technical_highlights": {
+    "key_parameters": [],
+    "standards": [],
+    "special_requirements": [],
+    "acceptance_criteria": []
+  },
+  "bid_document_requirements": {
+    "required_contents": [],
+    "copies": "",
+    "seal_requirements": "",
+    "format_requirements": []
+  },
+  "contract_highlights": {
+    "contract_type": "",
+    "warranty_period": "",
+    "liquidated_damages": "",
+    "dispute_resolution": "",
+    "other": []
+  },
+  "risk_analysis": {
+    "disqualifying_factors": [],
+    "high_risk": [],
+    "medium_risk": [],
+    "low_risk": []
+  },
+  "bidding_strategy": {
+    "preparation_focus": [],
+    "competitive_insights": "",
+    "pricing_suggestion": "",
+    "key_success_factors": [],
+    "timeline_reminders": []
+  },
+  "key_deviations": []
 }
+
+## 质量标准
+- 所有信息必须来源于文件原文，不要臆造
+- 资格要求务必分类整理，不要笼统堆在一个数组里
+- 评分细则要逐项列出name/category/full_score/evaluation_criteria
+- 风险分析要具体，避免"注意审慎"这类空话
+- 投标策略要结合评分权重给出可操作建议
+- 缺失字段用空字符串或空数组，不填null`;
 
 export class DeepSeekService {
   private apiKey: string;
@@ -300,7 +222,7 @@ export class DeepSeekService {
 
     const messages = [
       { role: "system" as const, content: SYSTEM_PROMPT },
-      { role: "user" as const, content: `请深度分析以下招标文件内容：\n\n${content}` },
+      { role: "user" as const, content: `请深度分析以下招标文件内容，严格按照JSON格式输出结果：\n\n${content}` },
     ];
 
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -314,11 +236,6 @@ export class DeepSeekService {
         messages,
         temperature: 0.1,
         max_tokens: 16384,
-        tools: [ANALYSIS_TOOL],
-        tool_choice: {
-          type: "function",
-          function: { name: "output_tender_analysis" },
-        },
       }),
       signal: options?.signal,
     });
@@ -333,43 +250,61 @@ export class DeepSeekService {
   }
 
   private parseResult(data: {
-    choices?: { message?: { content?: string; tool_calls?: { function?: { arguments?: string } }[] } }[];
+    choices?: { message?: { content?: string }; finish_reason?: string }[];
   }): TenderAnalysis {
-    const choice = data.choices?.[0]?.message;
-    if (!choice) {
+    const choice = data.choices?.[0];
+    const message = choice?.message;
+
+    if (!message) {
       throw new Error("DeepSeek API 返回空结果");
     }
 
-    // Try function call result first
-    const toolCall = choice.tool_calls?.[0];
-    if (toolCall?.function?.arguments) {
-      try {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        if (isValidAnalysis(parsed)) {
-          return this.normalizeAnalysis(parsed as Record<string, unknown>);
-        }
-      } catch {
-        // fall through to content parsing
-      }
-    }
+    const content = message.content || "";
+    const trimmed = content.trim();
 
-    // Fallback: parse content as JSON
-    const content = choice.content;
-    if (!content) {
+    if (!trimmed) {
       throw new Error("AI 未返回有效分析结果");
     }
 
+    // Try direct JSON parse first
     try {
-      const cleaned = this.cleanJsonString(content);
-      const parsed = JSON.parse(cleaned);
-      if (isValidAnalysis(parsed)) {
-        return this.normalizeAnalysis(parsed as Record<string, unknown>);
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "object" && parsed !== null && typeof parsed.project_name === "string") {
+        return this.normalizeAnalysis(parsed);
       }
     } catch {
-      throw new Error("解析分析结果失败：AI 返回了非预期的格式");
+      // fall through
     }
 
-    throw new Error("解析分析结果失败");
+    // Try cleaning markdown formatting and parsing
+    const cleaned = this.cleanJsonString(trimmed);
+    if (cleaned !== trimmed) {
+      try {
+        const parsed = JSON.parse(cleaned);
+        if (typeof parsed === "object" && parsed !== null && typeof parsed.project_name === "string") {
+          return this.normalizeAnalysis(parsed as Record<string, unknown>);
+        }
+      } catch {
+        // fall through
+      }
+    }
+
+    // Try regex-based JSON extraction (last resort)
+    try {
+      const match = trimmed.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        if (typeof parsed === "object" && parsed !== null && typeof parsed.project_name === "string") {
+          return this.normalizeAnalysis(parsed as Record<string, unknown>);
+        }
+      }
+    } catch {
+      // fall through
+    }
+
+    // All parsing failed - show first 300 chars to help debug
+    const preview = trimmed.slice(0, 300);
+    throw new Error(`解析分析结果失败：AI 返回了非预期的格式。返回内容预览：${preview}`);
   }
 
   private normalizeAnalysis(raw: Record<string, unknown>): TenderAnalysis {
