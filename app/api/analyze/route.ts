@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { deepseekService } from "@/lib/deepseek";
 
 export const config = {
@@ -6,6 +6,10 @@ export const config = {
     bodyParser: false,
   },
 };
+
+// DeepSeek V3 context window ~64K tokens, keep more source text
+const MAX_CHARS = 60000;
+const API_TIMEOUT_MS = 180000;
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +23,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
     if (!file.type.includes("pdf") && !(file instanceof File && file.name.toLowerCase().endsWith(".pdf"))) {
       return NextResponse.json(
         { error: "仅支持 PDF 格式文件" },
@@ -27,7 +30,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (50MB)
     if (file.size > 50 * 1024 * 1024) {
       return NextResponse.json(
         { error: "文件大小不能超过 50MB" },
@@ -35,7 +37,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate empty file
     if (file.size === 0) {
       return NextResponse.json(
         { error: "文件内容为空" },
@@ -43,11 +44,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read PDF content
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Parse PDF text
     let pdfText: string;
     try {
       const pdfParse = (await import("pdf-parse")).default;
@@ -67,20 +66,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Truncate text if too long (DeepSeek context limit ~64k tokens)
-    const maxChars = 30000;
+    // Truncate if too long
     const truncatedText =
-      pdfText.length > maxChars
-        ? pdfText.slice(0, maxChars) +
-          `\n\n[注意：原始文件内容超过${maxChars}字符，已截取前${maxChars}字符进行分析]`
+      pdfText.length > MAX_CHARS
+        ? pdfText.slice(0, MAX_CHARS) +
+          `\n\n[注意：原始文件内容超过${MAX_CHARS}字符，已截取前${MAX_CHARS}字符进行分析]`
         : pdfText;
 
-    // Call DeepSeek API
-    const analysis = await deepseekService.analyze(truncatedText);
+    // Request with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-    return NextResponse.json(analysis);
+    try {
+      const analysis = await deepseekService.analyze(truncatedText, {
+        signal: controller.signal,
+      });
+      return NextResponse.json(analysis);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   } catch (error) {
     console.error("Analysis error:", error);
+
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return NextResponse.json(
+        { error: "分析超时，文件内容可能过大，请尝试截取关键章节后重试" },
+        { status: 408 },
+      );
+    }
 
     const message =
       error instanceof Error ? error.message : "分析过程出现未知错误";
